@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 
 class UserController extends Controller
 {
@@ -72,6 +73,9 @@ class UserController extends Controller
                 $validated['avatar'] = $request->file('avatar')->store('avatars', 'public');
             }
 
+             $validated['password'] = bcrypt($request->password);
+             $validated['email_verified_at'] = now();
+
             // Enkripsi password sebelum disimpan ke database
             $validated['password'] = Hash::make($validated['password']);
 
@@ -93,24 +97,113 @@ class UserController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(string $id)
+    public function edit(User $user)
     {
-        //
+        return view('user.edit', [
+            'title' => 'Edit User',
+            'user' => $user,
+                
+        ]);
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, string $id)
+    public function update(Request $request, User $user)
     {
-        //
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users,email,' . $user->id,
+            'password' => 'nullable|string|min:8',
+            'password_confirmation' => 'nullable|same:password',
+            'avatar' => 'nullable|image|mimes:jpeg,png,jpg|max:1048',
+            'role' => 'required|in:Superadmin,Admin',
+        ],
+        [
+            'name.required' => 'Nama wajib diisi.',
+            'name.max' => 'Nama tidak boleh lebih dari :max karakter.',
+            
+            'email.required' => 'Email wajib diisi.',
+            'email.email' => 'Format email tidak valid.',
+            'email.unique' => 'Email ini sudah terdaftar.',
+            'email.max' => 'Email tidak boleh lebih dari :max karakter.',
+            
+            'password.required' => 'Password wajib diisi.',
+            'password.min' => 'Password minimal harus :min karakter.',
+            'password_confirmation.required' => 'Konfirmasi password wajib diisi.',
+            'password_confirmation.same' => 'Konfirmasi password tidak cocok.',
+            
+            'avatar.image' => 'Avatar harus berupa gambar.',
+            'avatar.mimes' => 'Format gambar harus jpeg, png, atau jpg.',
+            'avatar.max' => 'Ukuran gambar tidak boleh lebih dari 1MB.',
+            
+            'role.required' => 'Role wajib dipilih.',
+            'role.in' => 'Role yang dipilih harus Superadmin atau Admin.',
+        ]);
+
+        DB::beginTransaction();
+
+        try {
+            if ($request->file('avatar')) {
+                $validated['avatar'] = $request->file('avatar')->store('avatars', 'public');
+                if ($user->avatar) {
+                    Storage::disk('public')->delete($user->avatar);
+                }
+            }
+
+            if($request->password) {
+                $validated['password'] = bcrypt($request->password);
+            }else{
+                unset($validated['password']);
+            }
+
+
+             $validated['password'] = bcrypt($request->password);
+             
+            // Enkripsi password sebelum disimpan ke database
+            $validated['password'] = Hash::make($validated['password']);
+
+            // Simpan data user ke database
+            $user->update($validated);
+
+            DB::commit(); 
+
+            return to_route('user.index')->withSuccess('User updated successfully');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return to_route('user.edit', $user)->with('error', 'Failed to update user: ' . $e->getMessage());
+        }
     }
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(string $id)
+   public function destroy(User $user)
+{
+    DB::beginTransaction();
+    try {
+        if ($user->avatar) {
+            Storage::disk('public')->delete($user->avatar);
+        }
+
+        $user->delete();
+
+        DB::commit();
+
+        return to_route('user.index')->with('success', 'User deleted successfully');
+    } catch (\Exception $e) {
+        DB::rollBack();
+        return to_route('user.index')->with('error', 'Failed to delete user');
+    }
+}
+
+public function show(User $user)
     {
-        //
+       return view('user.show', [
+            'title' => 'Detail User',
+            'user' => $user,
+        ]);
     }
 }
