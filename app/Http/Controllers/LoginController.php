@@ -34,4 +34,14 @@ class LoginController extends Controller
     
     return back()->with('error', 'The provided credentials do not match our records.')->withInput();
 }
+public function logout(Request $request): RedirectResponse
+{
+    Auth::logout();
+ 
+    $request->session()->invalidate();
+ 
+    $request->session()->regenerateToken();
+ 
+    return redirect('/')->withSuccess('You have been logged out!');
+}
 }

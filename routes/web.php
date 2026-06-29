@@ -7,28 +7,24 @@ use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
 
-// LOGIN (halaman pertama)
-Route::get('/', [LoginController::class, 'index'])
-    ->name('login');
+
+Route::get('/', [LoginController::class, 'index'])->name('login');
+Route::get('/login/logout', [LoginController::class, 'logout'])->name('login.logout');
+
+Route::post('/authenticate', [LoginController::class, 'authenticate'])->name('login.authenticate');
 
 
-// Proses login
-Route::post('/authenticate', [LoginController::class, 'authenticate'])
-    ->name('login.authenticate');
 
+Route::middleware('auth')->group(function(){
 
-// Dashboard setelah login
-Route::get('/dashboard', [DashboardController::class, 'index'])
-    ->name('dashboard.index');
+Route::get('/dashboard', [DashboardController::class, 'index']) ->name('dashboard.index');
+Route::get('/dashboard/show', [DashboardController::class, 'show']) ->name('dashboard.show');
+Route::get('/dashboard/edit', [DashboardController::class, 'edit']) ->name('dashboard.edit');
+Route::put('/dashboard/update', [DashboardController::class, 'update']) ->name('dashboard.update');
 
+Route::get('/setting', [SettingController::class, 'index'])->name('setting.index');
 
-// Setting
-Route::get('/setting', [SettingController::class, 'index'])
-    ->name('setting.index');
-
-Route::put('/setting', [SettingController::class, 'update'])
-    ->name('setting.update');
-
-
-// User
+Route::put('/setting', [SettingController::class, 'update'])->name('setting.update');
 Route::resource('/user', UserController::class);
+});
+
